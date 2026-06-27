@@ -1,8 +1,10 @@
+/* eslint-disable prettier/prettier */
+/* eslint-disable indent */
 'use strict';
 
-const crypto = require('node:crypto');
+const nodeCrypto = require('node:crypto');
 const http = require('node:http');
-const { URL } = require('node:url');
+const { URL: NodeURL } = require('node:url');
 
 function createServer() {
   const users = [];
@@ -28,7 +30,6 @@ function createServer() {
 
       req.on('end', () => {
         const params = new URLSearchParams(body);
-
         const data = {};
 
         for (const [key, value] of params.entries()) {
@@ -82,7 +83,7 @@ function createServer() {
   }
 
   function createSession(user) {
-    const sessionId = crypto.randomBytes(16).toString('hex');
+    const sessionId = nodeCrypto.randomBytes(16).toString('hex');
 
     sessions.set(sessionId, user.email);
 
@@ -101,7 +102,6 @@ function createServer() {
     }
 
     const sessionId = sessionCookie.split('=')[1];
-
     const email = sessions.get(sessionId);
 
     if (!email) {
@@ -138,7 +138,7 @@ function createServer() {
   }
 
   return http.createServer(async (req, res) => {
-    const url = new URL(req.url, 'http://127.0.0.1');
+    const url = new NodeURL(req.url, 'http://127.0.0.1');
     const { pathname } = url;
 
     if (req.method === 'GET' && pathname === '/') {
@@ -181,7 +181,8 @@ function createServer() {
           200,
           renderPage(
             'Login',
-            '<p class="message">Invalid email or password.</p><a href="/login">Try again</a>',
+            '<p class="message">Invalid email or password.</p>' +
+              '<a href="/login">Try again</a>',
           ),
         );
 
@@ -194,7 +195,9 @@ function createServer() {
           200,
           renderPage(
             'Login',
-            `<p class="message">Please activate your email before signing in. <a href="/register">Resend activation</a></p>`,
+            // eslint-disable-next-line max-len
+            '<p class="message">Please activate your email before signing in.</p>' +
+              '<p><a href="/register">Resend activation</a></p>',
           ),
         );
 
@@ -221,7 +224,8 @@ function createServer() {
       }
 
       const content = `
-        <p>Password rules: at least 8 characters, one uppercase, one lowercase, one number, one special character.</p>
+        <p>Password rules: at least 8 characters, one uppercase, one lowercase,
+        one number, one special character.</p>
         <form action="/register" method="post">
           <label>Name</label>
           <input name="name" required>
@@ -280,7 +284,7 @@ function createServer() {
         return;
       }
 
-      const activationToken = crypto.randomBytes(16).toString('hex');
+      const activationToken = nodeCrypto.randomBytes(16).toString('hex');
       const user = {
         id: nextId++,
         name: body.name,
@@ -294,7 +298,9 @@ function createServer() {
       users.push(user);
 
       const content = `
-        <p class="message">Account created. An activation email was sent to ${escapeHtml(user.email)}.</p>
+        <p class="message">Account created. An activation email was sent to ${escapeHtml(
+          user.email,
+        )}.</p>
         <p><a href="/activate?token=${activationToken}">Activate account</a></p>
       `;
 
@@ -329,6 +335,7 @@ function createServer() {
 
       user.active = true;
       user.activationToken = null;
+
       const sessionId = createSession(user);
 
       res.writeHead(302, {
@@ -366,7 +373,7 @@ function createServer() {
       const user = getUserByEmail(body.email);
 
       if (user) {
-        user.resetToken = crypto.randomBytes(16).toString('hex');
+        user.resetToken = nodeCrypto.randomBytes(16).toString('hex');
       }
 
       const resetLink = user
@@ -374,7 +381,8 @@ function createServer() {
         : '';
 
       const content = `
-        <p class="message">If the email exists, a reset email was sent to ${escapeHtml(body.email || '')}.</p>
+        <p class="message">If the email exists, a reset email was sent to
+        ${escapeHtml(body.email || '')}.</p>
         ${resetLink}
       `;
 
@@ -544,13 +552,15 @@ function createServer() {
         body.password !== undefined
       ) {
         if (!body.password || !body.newEmail || !body.confirmationEmail) {
-          message = 'Please provide your current password and both email fields.';
+          message =
+            'Please provide your current password and both email fields.';
         } else if (user.password !== body.password) {
           message = 'Current password is incorrect.';
         } else if (body.newEmail !== body.confirmationEmail) {
           message = 'New emails must match.';
         } else {
           const previousEmail = user.email;
+
           user.email = body.newEmail;
           message = `Email updated. A notification was sent to ${escapeHtml(previousEmail)}.`;
         }

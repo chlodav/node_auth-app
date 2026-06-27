@@ -65,10 +65,9 @@ function getCookie(headers) {
 
 describe('auth application', () => {
   let server;
-  let port;
 
   beforeEach(async () => {
-    ({ server, port } = await startServer());
+    ({ server } = await startServer());
   });
 
   afterEach((done) => {
@@ -81,6 +80,7 @@ describe('auth application', () => {
     });
 
     assert.strictEqual(registerResponse.statusCode, 200);
+
     const tokenMatch = registerResponse.body.match(/activate\?token=([^"']+)/);
 
     assert.ok(tokenMatch, 'activation link should be present');
@@ -104,6 +104,7 @@ describe('auth application', () => {
     assert.match(profileResponse.body, /Welcome, Test User/i);
   });
 
+  // eslint-disable-next-line max-len
   it('allows a user to reset the password and sign in with the new password', async () => {
     const registerResponse = await makeRequest(server, 'POST', '/register', {
       body: 'name=Reset+User&email=reset@example.com&password=Abc123!@',
@@ -154,6 +155,7 @@ describe('auth application', () => {
     assert.strictEqual(loginResponse.headers.location, '/profile');
   });
 
+  // eslint-disable-next-line max-len
   it('allows a signed in user to change their password from the profile page', async () => {
     const registerResponse = await makeRequest(server, 'POST', '/register', {
       body: 'name=Profile+User&email=profile@example.com&password=Abc123!@',
@@ -174,7 +176,9 @@ describe('auth application', () => {
     });
 
     const profileResponse = await makeRequest(server, 'POST', '/profile', {
-      body: 'oldPassword=Abc123!@&newPassword=NewPass456!&confirmation=NewPass456!',
+      body:
+        'oldPassword=Abc123!@&newPassword=NewPass456!&confirmation=' +
+        'NewPass456!',
       headers: {
         cookie: getCookie(loginResponse.headers),
       },
@@ -183,12 +187,21 @@ describe('auth application', () => {
     assert.strictEqual(profileResponse.statusCode, 200);
     assert.match(profileResponse.body, /Password updated/i);
 
-    const loginWithNewPasswordResponse = await makeRequest(server, 'POST', '/login', {
-      body: 'email=profile@example.com&password=NewPass456!',
-    });
+    const loginWithNewPasswordResponse = await makeRequest(
+      server,
+      'POST',
+      '/login',
+      {
+        body: 'email=profile@example.com&password=NewPass456!',
+      },
+    );
 
     assert.strictEqual(loginWithNewPasswordResponse.statusCode, 302);
-    assert.strictEqual(loginWithNewPasswordResponse.headers.location, '/profile');
+
+    assert.strictEqual(
+      loginWithNewPasswordResponse.headers.location,
+      '/profile',
+    );
   });
 
   it('redirects authenticated users away from the login page', async () => {
@@ -216,6 +229,7 @@ describe('auth application', () => {
     assert.strictEqual(loginResponse.headers.location, '/profile');
   });
 
+  // eslint-disable-next-line max-len
   it('allows a signed in user to change their email from the profile page', async () => {
     const registerResponse = await makeRequest(server, 'POST', '/register', {
       body: 'name=Email+User&email=old@example.com&password=Abc123!@',
@@ -225,7 +239,7 @@ describe('auth application', () => {
       /activate\?token=([^"']+)/,
     );
 
-    const activationResponse = await makeRequest(
+    await makeRequest(
       server,
       'GET',
       `/activate?token=${activationTokenMatch[1]}`,
@@ -236,7 +250,9 @@ describe('auth application', () => {
     });
 
     const profileResponse = await makeRequest(server, 'POST', '/profile', {
-      body: 'password=Abc123!@&newEmail=new@example.com&confirmationEmail=new@example.com',
+      body:
+        'password=Abc123!@&newEmail=new@example.com&confirmationEmail=' +
+        'new@example.com',
       headers: {
         cookie: getCookie(loginResponse.headers),
       },
@@ -246,9 +262,14 @@ describe('auth application', () => {
     assert.match(profileResponse.body, /Email updated/i);
     assert.match(profileResponse.body, /old@example.com/i);
 
-    const loginWithNewEmailResponse = await makeRequest(server, 'POST', '/login', {
-      body: 'email=new@example.com&password=Abc123!@',
-    });
+    const loginWithNewEmailResponse = await makeRequest(
+      server,
+      'POST',
+      '/login',
+      {
+        body: 'email=new@example.com&password=Abc123!@',
+      },
+    );
 
     assert.strictEqual(loginWithNewEmailResponse.statusCode, 302);
     assert.strictEqual(loginWithNewEmailResponse.headers.location, '/profile');
