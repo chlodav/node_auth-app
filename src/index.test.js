@@ -190,4 +190,67 @@ describe('auth application', () => {
     assert.strictEqual(loginWithNewPasswordResponse.statusCode, 302);
     assert.strictEqual(loginWithNewPasswordResponse.headers.location, '/profile');
   });
+
+  it('redirects authenticated users away from the login page', async () => {
+    const registerResponse = await makeRequest(server, 'POST', '/register', {
+      body: 'name=Guard+User&email=guard@example.com&password=Abc123!@',
+    });
+
+    const activationTokenMatch = registerResponse.body.match(
+      /activate\?token=([^"']+)/,
+    );
+
+    const activationResponse = await makeRequest(
+      server,
+      'GET',
+      `/activate?token=${activationTokenMatch[1]}`,
+    );
+
+    const loginResponse = await makeRequest(server, 'GET', '/login', {
+      headers: {
+        cookie: getCookie(activationResponse.headers),
+      },
+    });
+
+    assert.strictEqual(loginResponse.statusCode, 302);
+    assert.strictEqual(loginResponse.headers.location, '/profile');
+  });
+
+  it('allows a signed in user to change their email from the profile page', async () => {
+    const registerResponse = await makeRequest(server, 'POST', '/register', {
+      body: 'name=Email+User&email=old@example.com&password=Abc123!@',
+    });
+
+    const activationTokenMatch = registerResponse.body.match(
+      /activate\?token=([^"']+)/,
+    );
+
+    const activationResponse = await makeRequest(
+      server,
+      'GET',
+      `/activate?token=${activationTokenMatch[1]}`,
+    );
+
+    const loginResponse = await makeRequest(server, 'POST', '/login', {
+      body: 'email=old@example.com&password=Abc123!@',
+    });
+
+    const profileResponse = await makeRequest(server, 'POST', '/profile', {
+      body: 'password=Abc123!@&newEmail=new@example.com&confirmationEmail=new@example.com',
+      headers: {
+        cookie: getCookie(loginResponse.headers),
+      },
+    });
+
+    assert.strictEqual(profileResponse.statusCode, 200);
+    assert.match(profileResponse.body, /Email updated/i);
+    assert.match(profileResponse.body, /old@example.com/i);
+
+    const loginWithNewEmailResponse = await makeRequest(server, 'POST', '/login', {
+      body: 'email=new@example.com&password=Abc123!@',
+    });
+
+    assert.strictEqual(loginWithNewEmailResponse.statusCode, 302);
+    assert.strictEqual(loginWithNewEmailResponse.headers.location, '/profile');
+  });
 });

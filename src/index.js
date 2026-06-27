@@ -121,6 +121,10 @@ function createServer() {
     );
   }
 
+  function isAuthenticated(req) {
+    return Boolean(getAuthenticatedUser(req));
+  }
+
   function getUserByEmail(email) {
     return users.find((user) => user.email === email);
   }
@@ -145,6 +149,13 @@ function createServer() {
     }
 
     if (req.method === 'GET' && pathname === '/login') {
+      if (isAuthenticated(req)) {
+        res.writeHead(302, { location: '/profile' });
+        res.end();
+
+        return;
+      }
+
       const content = `
         <form action="/login" method="post">
           <label>Email</label>
@@ -202,6 +213,13 @@ function createServer() {
     }
 
     if (req.method === 'GET' && pathname === '/register') {
+      if (isAuthenticated(req)) {
+        res.writeHead(302, { location: '/profile' });
+        res.end();
+
+        return;
+      }
+
       const content = `
         <p>Password rules: at least 8 characters, one uppercase, one lowercase, one number, one special character.</p>
         <form action="/register" method="post">
@@ -276,7 +294,7 @@ function createServer() {
       users.push(user);
 
       const content = `
-        <p class="message">Account created. Please confirm your email.</p>
+        <p class="message">Account created. An activation email was sent to ${escapeHtml(user.email)}.</p>
         <p><a href="/activate?token=${activationToken}">Activate account</a></p>
       `;
 
@@ -286,6 +304,13 @@ function createServer() {
     }
 
     if (req.method === 'GET' && pathname === '/activate') {
+      if (isAuthenticated(req)) {
+        res.writeHead(302, { location: '/profile' });
+        res.end();
+
+        return;
+      }
+
       const token = url.searchParams.get('token');
       const user = getUserByActivationToken(token);
 
@@ -316,6 +341,13 @@ function createServer() {
     }
 
     if (req.method === 'GET' && pathname === '/forgot-password') {
+      if (isAuthenticated(req)) {
+        res.writeHead(302, { location: '/profile' });
+        res.end();
+
+        return;
+      }
+
       const content = `
         <form action="/forgot-password" method="post">
           <label>Email</label>
@@ -342,7 +374,7 @@ function createServer() {
         : '';
 
       const content = `
-        <p class="message">If the email exists, a reset link has been sent.</p>
+        <p class="message">If the email exists, a reset email was sent to ${escapeHtml(body.email || '')}.</p>
         ${resetLink}
       `;
 
@@ -352,6 +384,13 @@ function createServer() {
     }
 
     if (req.method === 'GET' && pathname === '/reset-password') {
+      if (isAuthenticated(req)) {
+        res.writeHead(302, { location: '/profile' });
+        res.end();
+
+        return;
+      }
+
       const token = url.searchParams.get('token');
       const user = getUserByResetToken(token);
 
@@ -456,6 +495,24 @@ function createServer() {
           <input name="name" value="${escapeHtml(user.name)}">
           <button type="submit">Update name</button>
         </form>
+        <form action="/profile" method="post">
+          <label>Current password</label>
+          <input name="password" type="password" required>
+          <label>New email</label>
+          <input name="newEmail" type="email" required>
+          <label>Confirm new email</label>
+          <input name="confirmationEmail" type="email" required>
+          <button type="submit">Update email</button>
+        </form>
+        <form action="/profile" method="post">
+          <label>Current password</label>
+          <input name="oldPassword" type="password" required>
+          <label>New password</label>
+          <input name="newPassword" type="password" required>
+          <label>Confirmation</label>
+          <input name="confirmation" type="password" required>
+          <button type="submit">Update password</button>
+        </form>
         <p><a href="/logout">Logout</a></p>
       `;
 
@@ -479,6 +536,24 @@ function createServer() {
 
       if (body.name) {
         user.name = body.name;
+      }
+
+      if (
+        body.newEmail !== undefined ||
+        body.confirmationEmail !== undefined ||
+        body.password !== undefined
+      ) {
+        if (!body.password || !body.newEmail || !body.confirmationEmail) {
+          message = 'Please provide your current password and both email fields.';
+        } else if (user.password !== body.password) {
+          message = 'Current password is incorrect.';
+        } else if (body.newEmail !== body.confirmationEmail) {
+          message = 'New emails must match.';
+        } else {
+          const previousEmail = user.email;
+          user.email = body.newEmail;
+          message = `Email updated. A notification was sent to ${escapeHtml(previousEmail)}.`;
+        }
       }
 
       if (
